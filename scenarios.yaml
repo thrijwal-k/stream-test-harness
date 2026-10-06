@@ -1,0 +1,60 @@
+# Test plan: each scenario degrades the link in a known way, then checks that the harness
+# measures exactly that, and that broadcast monitoring (TS continuity) catches the damage.
+scenarios:
+  - name: clean_link
+    description: Baseline. Nothing should be lost, reordered or corrupted.
+    impairment: {}
+    probe: {rate_pps: 500, duration_s: 3}
+    video: {duration_s: 6}
+    expect:
+      loss_pct: {max: 0}
+      duplicates: {max: 0}
+      reordered_pct: {max: 0}
+      latency_ms_p99: {max: 5}
+      sync_byte_errors: {max: 0}
+      continuity_errors: {max: 0}
+      frames_decoded_pct: {min: 99}
+      decoder_errors: {max: 0}
+
+  - name: packet_loss_2pct
+    description: 2% random loss. Measured loss should match, and TS monitoring must detect it.
+    impairment: {loss: 0.02}
+    probe: {rate_pps: 500, duration_s: 4}
+    video: {duration_s: 6}
+    expect:
+      loss_pct: {min: 1.2, max: 2.8}
+      continuity_errors: {min: 1}
+
+  - name: delay_and_jitter
+    description: 40 ms delay with +/-10 ms jitter, typical of a congested internet path.
+    impairment: {delay_ms: 40, jitter_ms: 10}
+    probe: {rate_pps: 500, duration_s: 3}
+    expect:
+      loss_pct: {max: 0}
+      latency_ms_p50: {min: 35, max: 46}
+      latency_ms_p99: {max: 55}
+      jitter_ms: {min: 1}
+
+  - name: reordering_5pct
+    description: 5% of packets held back by 20 ms so they arrive out of order.
+    impairment: {reorder: 0.05, reorder_delay_ms: 20}
+    probe: {rate_pps: 500, duration_s: 4}
+    expect:
+      loss_pct: {max: 0}
+      reordered_pct: {min: 3.5, max: 6.5}
+
+  - name: duplication_1pct
+    description: 1% of packets delivered twice.
+    impairment: {duplicate: 0.01}
+    probe: {rate_pps: 500, duration_s: 4}
+    expect:
+      loss_pct: {max: 0}
+      duplicate_pct: {min: 0.4, max: 1.6}
+
+  - name: video_under_light_loss
+    description: 0.5% loss on the live video feed. Viewers might not notice, but monitoring must.
+    impairment: {loss: 0.005, seed: 7}
+    video: {duration_s: 8}
+    expect:
+      continuity_errors: {min: 1}
+      frames_decoded_pct: {min: 80}

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Lint and unit tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements.txt ruff==0.16.10
+      - run: ruff check .
+      - run: python -m pytest -q
+
+  scenarios:
+    name: Stream test plan (live video over impaired links)
+    needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pip install -r requirements.txt
+      - name: Run every scenario in scenarios.yaml
+        run: PYTHONPATH=src python -m streamtest.runner --plan scenarios.yaml --out reports
+      - name: Publish the report to the run summary
+        if: always()
+        run: test -f reports/report.md && cat reports/report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Keep the full report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-test-report
+          path: reports/

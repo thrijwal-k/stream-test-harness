@@ -1,0 +1,17 @@
+[project]
+name = "stream-test-harness"
+version = "0.1.0"
+description = "Automated test harness for live video and media streams over IP"
+requires-python = ">=3.10"
+dependencies = ["pyyaml>=6.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
